@@ -2,7 +2,25 @@ _base_ = [
     '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py',
     './yolox_tta.py'
 ]
-
+metainfo = {
+    'classes': (
+        'one',
+        'two',
+        'three',
+        'four',
+        'five',
+        'six',
+        'seven',
+        'eight',
+        'nine',
+        'zero',
+        'plus2',
+        'block',
+        'reverse',
+        'change',
+        'plus4' 
+        )
+}
 img_scale = (640, 640)  # width, height
 
 # model settings
@@ -70,7 +88,7 @@ model = dict(
     test_cfg=dict(score_thr=0.01, nms=dict(type='nms', iou_threshold=0.65)))
 
 # dataset settings
-data_root = 'data/coco/'
+data_root = '../UNO_Card_Detection/'
 dataset_type = 'CocoDataset'
 
 # Example to use different file client
@@ -124,8 +142,9 @@ train_dataset = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file='annotations/instances_train2017.json',
-        data_prefix=dict(img='train2017/'),
+        metainfo=metainfo,
+        ann_file='annotations/train.json',
+        data_prefix=dict(img='images/dataset'),
         pipeline=[
             dict(type='LoadImageFromFile', backend_args=backend_args),
             dict(type='LoadAnnotations', with_bbox=True)
@@ -163,8 +182,9 @@ val_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file='annotations/instances_val2017.json',
-        data_prefix=dict(img='val2017/'),
+        metainfo=metainfo,
+        ann_file='annotations/test.json',
+        data_prefix=dict(img='images/dataset'),
         test_mode=True,
         pipeline=test_pipeline,
         backend_args=backend_args))
@@ -172,7 +192,7 @@ test_dataloader = val_dataloader
 
 val_evaluator = dict(
     type='CocoMetric',
-    ann_file=data_root + 'annotations/instances_val2017.json',
+    ann_file=data_root + 'annotations/test.json',
     metric='bbox',
     backend_args=backend_args)
 test_evaluator = val_evaluator
@@ -229,7 +249,31 @@ default_hooks = dict(
         interval=interval,
         max_keep_ckpts=3  # only keep latest 3 checkpoints
     ))
+vis_backends = [
+    dict(type='LocalVisBackend'),
+    dict(type='TensorboardVisBackend')]
+# dict(
+#         type="MMDetWandbHook",
+#         init_kwargs={"project": "mmdetection"},
+#         interval=10,
+#         log_checkpoint=True,
+#         log_checkpoint_metadata=True,
+#         num_eval_images=100,
+#         bbox_score_thr=0.3,
+#     )
+# vis_backends = [
+#     dict(type='LocalVisBackend'),
+#     dict(type='TensorboardVisBackend'),
+#     dict(type='WandbVisBackend',
+#          init_kwargs={
+#             'project': 'mmdetection',
+#             'group': 'maskrcnn-r50-fpn-1x-coco'
+#          })
+# ]
+visualizer = dict(
+    type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')
 
+load_from = "https://download.openmmlab.com/mmdetection/v2.0/yolox/yolox_s_8x8_300e_coco/yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth"
 custom_hooks = [
     dict(
         type='YOLOXModeSwitchHook',
