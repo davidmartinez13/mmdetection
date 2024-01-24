@@ -23,6 +23,7 @@ import re
 import torch.utils.data as data
 import torch.backends.cudnn as cudnn
 import numpy as np
+from std_msgs.msg import String
 
 def find_major_color(mask_red, mask_green, mask_yellow, mask_blue):
     total_pixels = mask_red.size
@@ -38,15 +39,15 @@ def find_major_color(mask_red, mask_green, mask_yellow, mask_blue):
     # Check if there is a major color and its percentage is above a threshold
     if max_count / total_pixels > 0.3:
         if max_count == count_red:
-            return "Red"
+            return "RED"
         elif max_count == count_green:
-            return "Green"
+            return "GREEN"
         elif max_count == count_yellow:
-            return "Yellow"
+            return "YELLOW"
         elif max_count == count_blue:
-            return "Blue"
+            return "BLUE"
 
-    return None
+    return "Colorless"
 
 def show_color_masks(cv_hsvimage):
     # Red Color
@@ -101,21 +102,21 @@ def get_label_color(label):
 
 def get_label_name(label):
     label_names = {
-        0: "one",
-        1: "two",
-        2: "three",
-        3: "four",
-        4: "five",
-        5: "six",
-        6: "seven",
-        7: "eight",
-        8: "nine",
-        9: "zero",
-        10: "plus2",
-        11: "block",
-        12: "reverse",
-        13: "change",
-        14: "plus4"
+        0: "1",
+        1: "2",
+        2: "3",
+        3: "4",
+        4: "5",
+        5: "6",
+        6: "7",
+        7: "8",
+        8: "9",
+        9: "0",
+        10: "Draw2",
+        11: "Skip",
+        12: "Reverse",
+        13: "Wild",
+        14: "Draw4"
         # Add more label names for additional classes as needed
     }
 
@@ -130,8 +131,8 @@ def image_callback(msg):
     scores = result.pred_instances.scores
     labels = result.pred_instances.labels
     # print(result.pred_instances.keys())
-    detected_color = None
-
+    detected_color = "Colorless"
+    current_detections = []
     for bbox, score, label_torch in zip(bboxes, scores, labels):
         if score < args.score_thr:
             continue
@@ -150,26 +151,27 @@ def image_callback(msg):
 
             # Use the find_major_color function to detect the dominant color
             detected_color = find_major_color(mask_red, mask_green, mask_yellow, mask_blue)
+            current_detections.append([detected_color, get_label_name(label)])
+
             print(detected_color)
             cv2.imshow('Red Mask', mask_red)
             cv2.imshow('Green Mask', mask_green)
             cv2.imshow('Blue Mask', mask_blue)
             cv2.imshow('Yellow Mask', mask_yellow)
 
-            if detected_color != None and label != 'plus4' and label != 'change':
+            if detected_color != "Colorless" and label != 'plus4' and label != 'change':
                 # Update the label with the detected color
                 label_text = f'{get_label_name(label)} | Color: {detected_color} | Score: {score:.2f}'
             else:
                 # If color detection fails, use only the label and score
                 label_text = f'{get_label_name(label)} | Score: {score:.2f}'
 
-            detected_color = None
 
             bbox = list(map(int, bbox))
             cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color, 2)
             cv2.putText(img, label_text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-
+    detected_objects_pub.publish(str(current_detections))
     cv2.imshow('result', img)
 
     # cv2.imshow('Detection', cv2.resize(frame_origin, (frame_origin.shape[1] * 2, frame_origin.shape[0] * 2)))
@@ -207,6 +209,7 @@ if __name__ == '__main__':
     visualizer.dataset_meta = model.dataset_meta
 
     rospy.init_node('nao_card_detector')
+    detected_objects_pub = rospy.Publisher('/nao_vision/detected_objects', String, queue_size=10)
     rospy.Subscriber("/nao_robot/camera/bottom/camera/image_raw", Image, image_callback)
 
     try:
