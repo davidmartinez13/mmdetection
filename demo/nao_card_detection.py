@@ -22,6 +22,59 @@ import time
 import re
 import torch.utils.data as data
 import torch.backends.cudnn as cudnn
+import numpy as np
+
+def find_major_color(mask_red, mask_green, mask_yellow, mask_blue):
+    total_pixels = mask_red.size
+
+    count_red = cv2.countNonZero(mask_red)
+    count_green = cv2.countNonZero(mask_green)
+    count_yellow = cv2.countNonZero(mask_yellow)
+    count_blue = cv2.countNonZero(mask_blue)
+
+    # Find the color with the maximum count
+    max_count = max(count_red, count_green, count_yellow, count_blue)
+
+    # Check if there is a major color and its percentage is above a threshold
+    if max_count / total_pixels > 0.3:
+        if max_count == count_red:
+            return "Red"
+        elif max_count == count_green:
+            return "Green"
+        elif max_count == count_yellow:
+            return "Yellow"
+        elif max_count == count_blue:
+            return "Blue"
+
+    return None
+
+def show_color_masks(cv_hsvimage):
+    # Red Color
+    lower_red1 = np.array([0, 100, 100], np.uint8)
+    upper_red1 = np.array([10, 255, 255], np.uint8)
+    lower_red2 = np.array([160, 100, 100], np.uint8)
+    upper_red2 = np.array([180, 255, 255], np.uint8)
+
+    mask_red1 = cv2.inRange(cv_hsvimage, lower_red1, upper_red1)
+    mask_red2 = cv2.inRange(cv_hsvimage, lower_red2, upper_red2)
+    mask_red = cv2.bitwise_or(mask_red1, mask_red2)
+
+    # Green Color
+    lower_green = np.array([40, 40, 40], np.uint8)
+    upper_green = np.array([90, 255, 255], np.uint8)
+    mask_green = cv2.inRange(cv_hsvimage, lower_green, upper_green)
+
+    # Blue Color
+    lower_blue = np.array([90, 50, 50], np.uint8)
+    upper_blue = np.array([150, 255, 255], np.uint8)
+    mask_blue = cv2.inRange(cv_hsvimage, lower_blue, upper_blue)
+
+    # Yellow Color
+    lower_yellow = np.array([20, 100, 100], np.uint8)
+    upper_yellow = np.array([40, 255, 255], np.uint8)
+    mask_yellow = cv2.inRange(cv_hsvimage, lower_yellow, upper_yellow)
+
+    return mask_red, mask_green, mask_blue, mask_yellow
 
 # ... (Other imports and functions)
 def get_label_color(label):
@@ -77,32 +130,46 @@ def image_callback(msg):
     scores = result.pred_instances.scores
     labels = result.pred_instances.labels
     # print(result.pred_instances.keys())
+    detected_color = None
 
-    # img = mmcv.imconvert(img, 'bgr', 'rgb')
-    # visualizer.add_datasample(
-    #     name='result',
-    #     image=img,
-    #     data_sample=result,
-    #     draw_gt=False,
-    #     pred_score_thr=args.score_thr,
-    #     show=False)
-
-    # img = visualizer.get_image()
     for bbox, score, label_torch in zip(bboxes, scores, labels):
         if score < args.score_thr:
             continue
-        label = int(label_torch)
-        print(label)
-        color = get_label_color(label)
-
         bbox = list(map(int, bbox))
-        cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color, 2)
+        label = int(label_torch)
+        color = get_label_color(label)
+        if bbox[0] >= 0 and bbox[1] >= 0 and bbox[2] < img_w and bbox[3] < img_h:
+            # Extract the region within the bounding box
+            roi = img[bbox[1]:bbox[3], bbox[0]:bbox[2]]
 
-        label_text = f'{get_label_name(label)} | Score: {score:.2f}'  # Use the label name
-        cv2.putText(img, label_text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            # Convert the region to HSV for color detection
+            roi_hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+            # Define color masks for red, green, yellow, and blue
+            mask_red, mask_green, mask_blue, mask_yellow = show_color_masks(roi_hsv)
+
+            # Use the find_major_color function to detect the dominant color
+            detected_color = find_major_color(mask_red, mask_green, mask_yellow, mask_blue)
+            print(detected_color)
+            cv2.imshow('Red Mask', mask_red)
+            cv2.imshow('Green Mask', mask_green)
+            cv2.imshow('Blue Mask', mask_blue)
+            cv2.imshow('Yellow Mask', mask_yellow)
+
+            if detected_color != None and label != 'plus4' and label != 'change':
+                # Update the label with the detected color
+                label_text = f'{get_label_name(label)} | Color: {detected_color} | Score: {score:.2f}'
+            else:
+                # If color detection fails, use only the label and score
+                label_text = f'{get_label_name(label)} | Score: {score:.2f}'
+
+            detected_color = None
+
+            bbox = list(map(int, bbox))
+            cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color, 2)
+            cv2.putText(img, label_text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
 
-    # img = mmcv.imconvert(img, 'bgr', 'rgb')
     cv2.imshow('result', img)
 
     # cv2.imshow('Detection', cv2.resize(frame_origin, (frame_origin.shape[1] * 2, frame_origin.shape[0] * 2)))
