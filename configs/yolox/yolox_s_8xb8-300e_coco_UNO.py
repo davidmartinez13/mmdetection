@@ -168,13 +168,13 @@ test_pipeline = [
 ]
 
 train_dataloader = dict(
-    batch_size=8,
+    batch_size=4,
     num_workers=4,
     persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=train_dataset)
 val_dataloader = dict(
-    batch_size=8,
+    batch_size=4,
     num_workers=4,
     persistent_workers=True,
     drop_last=False,
@@ -198,9 +198,9 @@ val_evaluator = dict(
 test_evaluator = val_evaluator
 
 # training settings
-max_epochs = 300
+max_epochs = 1000
 num_last_epochs = 15
-interval = 10
+interval = 50
 
 train_cfg = dict(max_epochs=max_epochs, val_interval=interval)
 
@@ -247,7 +247,7 @@ param_scheduler = [
 default_hooks = dict(
     checkpoint=dict(
         interval=interval,
-        max_keep_ckpts=3  # only keep latest 3 checkpoints
+        max_keep_ckpts=20  # only keep latest 3 checkpoints
     ))
 vis_backends = [
     dict(type='LocalVisBackend'),
