@@ -161,18 +161,19 @@ def image_callback(msg):
 
             if detected_color != "Colorless" and label != 'plus4' and label != 'change':
                 # Update the label with the detected color
-                label_text = f'{get_label_name(label)} | Color: {detected_color} | Score: {score:.2f}'
+                label_text = f'{get_label_name(label)} {detected_color} {score:.2f}'
             else:
                 # If color detection fails, use only the label and score
-                label_text = f'{get_label_name(label)} | Score: {score:.2f}'
+                label_text = f'{get_label_name(label)} {score:.2f}'
 
 
             bbox = list(map(int, bbox))
-            cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color, 2)
-            cv2.putText(img, label_text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color, 1)
+            cv2.putText(img, label_text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1)
 
     detected_objects_pub.publish(str(current_detections))
-    cv2.imshow('result', img)
+    cv2.imshow('result', cv2.resize(img,(img.shape[1]*4,img.shape[0]*4)))
+    # cv2.imshow('result', img)
 
     # cv2.imshow('Detection', cv2.resize(frame_origin, (frame_origin.shape[1] * 2, frame_origin.shape[0] * 2)))
     key = cv2.waitKey(10)
