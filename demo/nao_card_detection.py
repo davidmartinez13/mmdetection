@@ -154,10 +154,10 @@ def image_callback(msg):
             current_detections.append([detected_color, get_label_name(label)])
 
             print(detected_color)
-            cv2.imshow('Red Mask', mask_red)
-            cv2.imshow('Green Mask', mask_green)
-            cv2.imshow('Blue Mask', mask_blue)
-            cv2.imshow('Yellow Mask', mask_yellow)
+            cv2.imshow('Red Mask', cv2.resize(mask_red,(mask_red.shape[1]*4,mask_red.shape[0]*4)))
+            cv2.imshow('Green Mask', cv2.resize(mask_green,(mask_green.shape[1]*4,mask_green.shape[0]*4)))
+            cv2.imshow('Blue Mask', cv2.resize(mask_blue,(mask_blue.shape[1]*4,mask_blue.shape[0]*4)))
+            cv2.imshow('Yellow Mask', cv2.resize(mask_yellow,(mask_yellow.shape[1]*4,mask_yellow.shape[0]*4)))
 
             if detected_color != "Colorless" and label != 'plus4' and label != 'change':
                 # Update the label with the detected color
